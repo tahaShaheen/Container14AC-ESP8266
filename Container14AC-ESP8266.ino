@@ -1,15 +1,19 @@
 #include <ESP8266WiFi.h>
 #include <FirebaseArduino.h>
 #include <FirebaseHttpClient.h>
+//NTP libraries
+#include <NTPClient.h>
+#include <WiFiUdp.h>
 /*
-    had to add this (<FirebaseHttpClient.h>) and replace the
-    kFirebaseFingerprint[] data to "B8 4F 40 70 0C 63 90 E0 07 E8 7D BD B4 11 D0 4A EA 9C 90 F6"
-    in the FireBaseHttpClient.h library.
-    apparently the figerprint for firebasio had been updated by Google
-    I found the updated fingerprint using https://www.grc.com/fingerprints.htm
-    and feeding in it my https://example.firebaseio.com/
-*/
+   Libraries:
+   
+   https://github.com/FirebaseExtended/firebase-arduino
+   commit cd5681f59cabdb31c2c50c55a5abc53af78a3280
 
+   https://github.com/bblanchon/ArduinoJson.git
+   commit ad4b13c8f044e67f1610fba96e8dc108ebc90cd5
+     
+*/
 
 #define FIREBASE_HOST "HOST"
 #define FIREBASE_AUTH "AUTH"
@@ -17,7 +21,12 @@
 #define WIFI_SSID "SSID"
 #define WIFI_PASSWORD "PASSWORD"
 
-int IRledPin =  D3;    // IR LED connected to digital pin D3
+int IRledPin =  D0;    // IR LED connected to digital pin D0
+String chuttiTime1, currentTime;
+bool updateSetting, updateSettingOld;
+
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, "time.google.com", 3600, 60000);
 
 void setup() {
   Serial.begin(115200);
@@ -37,17 +46,33 @@ void setup() {
   Serial.println(WiFi.localIP());
 
   Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH);
+  
+  Firebase.setBool("proofOfConnection",!(Firebase.getBool("proofOfConnection")));
+  
+  updateSettingOld = Firebase.getBool("updateSetting");
+  Firebase.setInt("whichSetting", 4);
+
 }
 
 void loop() {
 
+  //timeCheck();
+
   //first find out whether the user wants a setting update or not AND
   //if they do want a setting update, we find out which setting they want
 
-  if ((Firebase.getBool("updateSetting") == true) && (Firebase.getBool("confirmationStatus") == false)) {
-    SendCode(Firebase.getInt("whichSetting"));
+  updateSetting = Firebase.getBool("updateSetting");
 
-    Firebase.setBool("updateSetting", false);
-    Firebase.setBool("confirmationStatus", true);
+  if (updateSettingOld ^ updateSetting) { //XOR here because != was resulting in false truths for some reason
+    
+    updateSettingOld = updateSetting;
+
+    SendCode(Firebase.getInt("whichSetting"));
+    Firebase.setBool("confirmationStatus", !(Firebase.getBool("confirmationStatus")));
+    
+    Firebase.setInt("whichSetting", 4); //This is for safetly. For some reason the (updateSettingOld ^ updateSetting) seems to yeild true at times it shouldn't.
   }
+
+  
+  
 }
