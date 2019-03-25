@@ -1,15 +1,24 @@
 /*
-   Code used:
+  Code used:
    Rui Santos
    https://randomnerdtutorials.com/esp8266-web-server-with-arduino-ide/
 
    examples from library by markszabo
    https://github.com/markszabo/IRremoteESP8266.git
-*/
 
+    ESP8266 server example with GPIO 2 light turn on and off
+    and
+
+    Basic Example from NTP library
+*/
 
 // Load Wi-Fi library
 #include <ESP8266WiFi.h>
+//NTP library
+#include <NTPClient.h>
+//Don't know which library this is
+#include <WiFiUdp.h>
+
 
 // Replace with your network credentials
 const char* ssid     = "SSID";
@@ -17,12 +26,25 @@ const char* password = "PASSWORD";
 
 int IRledPin =  D0;    // IR LED connected to digital pin D0
 
+//actual time
+String chuttiTime1 = "07:30:00";
+String chuttiTime2 = "12:30:00";
+
+/*
+  //testing time
+  String chuttiTime1 = "14:05:00";
+  String chuttiTime2 = "14:06:00";
+*/
+
 // Set web server port number to 80
 WiFiServer server(80);
 
 // Variable to store the HTTP request
 String header;
 char val = 'F'; //Initialization to 'F' is important
+
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, "time.google.com", 3600, 60000);
 
 void setup() {
   Serial.begin(115200);
@@ -35,13 +57,13 @@ void setup() {
   Serial.println(ssid);
   WiFi.begin(ssid, password);
 
-  IPAddress ip(125, 200, 31, 221);
-  IPAddress gateway(192, 168, 1, 254);
-  IPAddress subnet(255, 255, 255, 0);
-  WiFi.config(ip, gateway, subnet);
+  //  IPAddress ip(10, 200, 31, 221/*XX*/);
+  //  IPAddress gateway(10, 200, 31, 192);
+  //  IPAddress subnet(255, 255, 255, 0);
+  //  WiFi.config(ip, gateway, subnet);
 
   /*I'm not entirely certain how the above four lines do it
-    but they freeze the ip to 125.200.31.221
+    but they freeze the ip to 125.200.31.221 (no it doesn't: the only thing I have control over is the last byte marked XX)(and that shit just leads to no connection to the NTP server)
     This is one of the last few CLass A IP addresses (the SARSABZ router kept assigning to us 10.sth.sth.sth)
     Abdul Samad said that the router assigns these serially
     This means that the router won't get to this number very quickly
@@ -57,10 +79,24 @@ void setup() {
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
   server.begin();
+  timeClient.begin();
 }
 
 void loop() {
   WiFiClient client = server.available();   // Listen for incoming clients
+
+  timeClient.update();
+  String currentTime = timeClient.getFormattedTime();
+  delayMicroseconds(5000);
+
+  if ((currentTime == chuttiTime1) || (currentTime == chuttiTime2)) {
+    val = 'T';
+
+    Serial.println("Sending IR signal");
+    SendCode(val);
+
+    Serial.println("TIME TO COOL SHIT DOWN!!");
+  }
 
   if (client) {                             // If a new client connects,
     Serial.println("New Client.");          // print a message out in the serial port
@@ -93,11 +129,13 @@ void loop() {
             else if (header.indexOf("GET /22") >= 0) {
               Serial.println("22C NORMAL");
               val = 'N';
-            } /*else {
+            }
+
+            /*else {
               Serial.println("invalid request");
               client.stop();
               return;
-            }*/
+              }*/
 
             // Set IR signal according to the request
             Serial.println("Sending IR signal");
@@ -126,6 +164,7 @@ void loop() {
               client.println("<p><a href=\"/TURBO\"><button class=\"button button2\">OFF</button></a></p>");
             }
 
+
             // Display current state for 22 and turn off if button clicked again
             client.println("<p>22C NORMAL</p>");
             // If the output4State is off, it displays the ON button
@@ -134,6 +173,10 @@ void loop() {
             } else {
               client.println("<p><a href=\"/22\"><button class=\"button button2\">OFF</button></a></p>");
             }
+
+            client.println("<p>The time I've got is: " + currentTime + " in 24 hrs</p>");
+            client.println("<p>Times that I turn on are: " + chuttiTime1 + " and " + chuttiTime2 + "</p>");
+
             client.println("</body></html>");
 
             // The HTTP response ends with another blank line

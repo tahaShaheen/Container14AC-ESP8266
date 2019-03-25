@@ -1,6 +1,6 @@
 /*
- * This pulsIR stuff came from https://github.com/tahaShaheen/Container14AC-IRGrab.git
- */
+   This pulsIR stuff came from https://github.com/tahaShaheen/Container14AC-IRGrab.git
+*/
 
 void SendCode(char val) {
   switch (val) {
