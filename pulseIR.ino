@@ -16,4 +16,3 @@ void pulseIR(long microsecs) {
 
   sei();  // this turns them back on
 }
-

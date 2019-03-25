@@ -10,6 +10,7 @@
     and
 
     Basic Example from NTP library
+    https://github.com/arduino-libraries/NTPClient
 */
 
 // Load Wi-Fi library
@@ -21,14 +22,13 @@
 
 
 // Replace with your network credentials
-const char* ssid     = "SSID";
-const char* password = "PASSWORD";
+const char* ssid     = "ramu";
+const char* password = "ramu kaka 78";
 
 int IRledPin =  D0;    // IR LED connected to digital pin D0
 
 //actual time
-String chuttiTime1 = "07:30:00";
-String chuttiTime2 = "12:30:00";
+String timeInput = "11:00:00";  //subtract 4 hours from your time, turn it into 24hrs, put it here
 
 /*
   //testing time
@@ -57,11 +57,12 @@ void setup() {
   Serial.println(ssid);
   WiFi.begin(ssid, password);
 
-  //  IPAddress ip(10, 200, 31, 221/*XX*/);
-  //  IPAddress gateway(10, 200, 31, 192);
-  //  IPAddress subnet(255, 255, 255, 0);
-  //  WiFi.config(ip, gateway, subnet);
-
+  /*
+    IPAddress ip(10, 200, 31, 221);
+    IPAddress gateway(10, 200, 31, 192);
+    IPAddress subnet(255, 255, 255, 0);
+    WiFi.config(ip, gateway, subnet);
+  */
   /*I'm not entirely certain how the above four lines do it
     but they freeze the ip to 125.200.31.221 (no it doesn't: the only thing I have control over is the last byte marked XX)(and that shit just leads to no connection to the NTP server)
     This is one of the last few CLass A IP addresses (the SARSABZ router kept assigning to us 10.sth.sth.sth)
@@ -87,9 +88,10 @@ void loop() {
 
   timeClient.update();
   String currentTime = timeClient.getFormattedTime();
+  //  Serial.println(currentTime);
   delayMicroseconds(5000);
 
-  if ((currentTime == chuttiTime1) || (currentTime == chuttiTime2)) {
+  if (currentTime == timeInput) {
     val = 'T';
 
     Serial.println("Sending IR signal");
@@ -148,12 +150,12 @@ void loop() {
             // CSS to style the on/off buttons
             // Feel free to change the background-color and font-size attributes to fit your preferences
             client.println("<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}");
-            client.println(".button { background-color: #195B6A; border: none; color: white; padding: 16px 40px;");
+            client.println(".button { background-color: #f44336; color: white; padding: 16px 40px; font-size: 16px; border-radius: 8px;");
             client.println("text-decoration: none; font-size: 30px; margin: 2px; cursor: pointer;}");
-            client.println(".button2 {background-color: #77878A;}</style></head>");
+            client.println(".button2 {background-color: white; border: 1px solid #f44336; color: #f44336; padding: 16px 40px; font-size: 16px; border-radius: 8px; text-decoration: none; font-size: 30px; margin: 2px; cursor: pointer;}</style></head>");
 
             // Web Page Heading
-            client.println("<body><h1>Container number 14 AC control</h1>");
+            client.println("<body bgcolor=\"black\" text=\"white\"><h1>Container number 14 AC control</h1>");
 
             // Display current state for TURBO and turn off if button clicked again
             client.println("<p>TURBO @ 16C</p>");
@@ -174,8 +176,8 @@ void loop() {
               client.println("<p><a href=\"/22\"><button class=\"button button2\">OFF</button></a></p>");
             }
 
-            client.println("<p>The time I've got is: " + currentTime + " in 24 hrs</p>");
-            client.println("<p>Times that I turn on are: " + chuttiTime1 + " and " + chuttiTime2 + "</p>");
+
+            //client.println("<form action=\"/action_page.php\">First name:<input type=\"text\" name=\"fname\"><br>Last name: <input type=\"text\" name=\"lname\"><br><input type=\"submit\" value=\"Submit\"></form>");
 
             client.println("</body></html>");
 
