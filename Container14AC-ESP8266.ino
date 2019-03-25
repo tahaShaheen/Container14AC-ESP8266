@@ -1,7 +1,12 @@
-/*********
-  Rui Santos
-  Complete project details at http://randomnerdtutorials.com  
-*********/
+/*
+   Code used:
+   Rui Santos
+   https://randomnerdtutorials.com/esp8266-web-server-with-arduino-ide/
+
+   examples from library by markszabo
+   https://github.com/markszabo/IRremoteESP8266.git
+*/
+
 
 // Load Wi-Fi library
 #include <ESP8266WiFi.h>
@@ -10,33 +15,38 @@
 const char* ssid     = "SSID";
 const char* password = "PASSWORD";
 
+int IRledPin =  D0;    // IR LED connected to digital pin D0
+
 // Set web server port number to 80
 WiFiServer server(80);
 
 // Variable to store the HTTP request
 String header;
-
-// Auxiliar variables to store the current output state
-String output5State = "off";
-String output4State = "off";
-
-// Assign output variables to GPIO pins
-const int output5 = 5;
-const int output4 = 4;
+char val = 'F'; //Initialization to 'F' is important
 
 void setup() {
   Serial.begin(115200);
-  // Initialize the output variables as outputs
-  pinMode(output5, OUTPUT);
-  pinMode(output4, OUTPUT);
-  // Set outputs to LOW
-  digitalWrite(output5, LOW);
-  digitalWrite(output4, LOW);
+  delay(10);
+  // prepare GPIO
+  pinMode(IRledPin, OUTPUT);  //did not initialize because not necessary
 
   // Connect to Wi-Fi network with SSID and password
   Serial.print("Connecting to ");
   Serial.println(ssid);
   WiFi.begin(ssid, password);
+
+  IPAddress ip(125, 200, 31, 221);
+  IPAddress gateway(192, 168, 1, 254);
+  IPAddress subnet(255, 255, 255, 0);
+  WiFi.config(ip, gateway, subnet);
+
+  /*I'm not entirely certain how the above four lines do it
+    but they freeze the ip to 125.200.31.221
+    This is one of the last few CLass A IP addresses (the SARSABZ router kept assigning to us 10.sth.sth.sth)
+    Abdul Samad said that the router assigns these serially
+    This means that the router won't get to this number very quickly
+    And we can always request it and get it*/
+
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
@@ -49,7 +59,7 @@ void setup() {
   server.begin();
 }
 
-void loop(){
+void loop() {
   WiFiClient client = server.available();   // Listen for incoming clients
 
   if (client) {                             // If a new client connects,
@@ -70,59 +80,62 @@ void loop(){
             client.println("Content-type:text/html");
             client.println("Connection: close");
             client.println();
-            
+
             // turns the GPIOs on and off
-            if (header.indexOf("GET /5/on") >= 0) {
-              Serial.println("GPIO 5 on");
-              output5State = "on";
-              digitalWrite(output5, HIGH);
-            } else if (header.indexOf("GET /5/off") >= 0) {
-              Serial.println("GPIO 5 off");
-              output5State = "off";
-              digitalWrite(output5, LOW);
-            } else if (header.indexOf("GET /4/on") >= 0) {
-              Serial.println("GPIO 4 on");
-              output4State = "on";
-              digitalWrite(output4, HIGH);
-            } else if (header.indexOf("GET /4/off") >= 0) {
-              Serial.println("GPIO 4 off");
-              output4State = "off";
-              digitalWrite(output4, LOW);
+            if (header.indexOf("GET /TURBO") >= 0) {
+              Serial.println("16C TURBO");
+              val = 'T';
             }
-            
+            else if (header.indexOf("GET /OFF") >= 0) {
+              Serial.println("AC OFF");
+              val = 'F';
+            }
+            else if (header.indexOf("GET /22") >= 0) {
+              Serial.println("22C NORMAL");
+              val = 'N';
+            } /*else {
+              Serial.println("invalid request");
+              client.stop();
+              return;
+            }*/
+
+            // Set IR signal according to the request
+            Serial.println("Sending IR signal");
+            SendCode(val);
+
             // Display the HTML web page
             client.println("<!DOCTYPE html><html>");
             client.println("<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
             client.println("<link rel=\"icon\" href=\"data:,\">");
-            // CSS to style the on/off buttons 
+            // CSS to style the on/off buttons
             // Feel free to change the background-color and font-size attributes to fit your preferences
             client.println("<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}");
             client.println(".button { background-color: #195B6A; border: none; color: white; padding: 16px 40px;");
             client.println("text-decoration: none; font-size: 30px; margin: 2px; cursor: pointer;}");
             client.println(".button2 {background-color: #77878A;}</style></head>");
-            
+
             // Web Page Heading
-            client.println("<body><h1>ESP8266 Web Server</h1>");
-            
-            // Display current state, and ON/OFF buttons for GPIO 5  
-            client.println("<p>GPIO 5 - State " + output5State + "</p>");
-            // If the output5State is off, it displays the ON button       
-            if (output5State=="off") {
-              client.println("<p><a href=\"/5/on\"><button class=\"button\">ON</button></a></p>");
+            client.println("<body><h1>Container number 14 AC control</h1>");
+
+            // Display current state for TURBO and turn off if button clicked again
+            client.println("<p>TURBO @ 16C</p>");
+            // If the output5State is off, it displays the ON button
+            if (val == 'T') {
+              client.println("<p><a href=\"/OFF\"><button class=\"button\">ON</button></a></p>");
             } else {
-              client.println("<p><a href=\"/5/off\"><button class=\"button button2\">OFF</button></a></p>");
-            } 
-               
-            // Display current state, and ON/OFF buttons for GPIO 4  
-            client.println("<p>GPIO 4 - State " + output4State + "</p>");
-            // If the output4State is off, it displays the ON button       
-            if (output4State=="off") {
-              client.println("<p><a href=\"/4/on\"><button class=\"button\">ON</button></a></p>");
+              client.println("<p><a href=\"/TURBO\"><button class=\"button button2\">OFF</button></a></p>");
+            }
+
+            // Display current state for 22 and turn off if button clicked again
+            client.println("<p>22C NORMAL</p>");
+            // If the output4State is off, it displays the ON button
+            if (val == 'N') {
+              client.println("<p><a href=\"/OFF\"><button class=\"button\">ON</button></a></p>");
             } else {
-              client.println("<p><a href=\"/4/off\"><button class=\"button button2\">OFF</button></a></p>");
+              client.println("<p><a href=\"/22\"><button class=\"button button2\">OFF</button></a></p>");
             }
             client.println("</body></html>");
-            
+
             // The HTTP response ends with another blank line
             client.println();
             // Break out of the while loop
